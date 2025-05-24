@@ -25,18 +25,19 @@ class OneLakeDeltaWriter:
         """
         Write Delta table using ADLS Gen2 APIs
         """
-        # Get file system client
-        file_system_client = self.service_client.get_file_system_client(
-            file_system=self.file_system
-        )
-        
         # Construct full path
         full_path = f"{self.lakehouse_name}/Tables/{table_path}"
         
         # Write using delta-rs with ADLS storage options
-        storage_options = {
-            "account_name": self.account_name,
-            "use_azure_active_directory": "true"
+        # storage_options = {
+        #     "account_name": self.account_name,
+        #     "use_azure_active_directory": "true"
+        # }
+
+        # Using DefaultAzureCredential (works with Azure CLI, Managed Identity, etc.)
+        storage_options={
+            "bearer_token": self.credential.get_token("https://storage.azure.com/.default").token,
+            "use_fabric_endpoint": "true"
         }
         
         write_deltalake(

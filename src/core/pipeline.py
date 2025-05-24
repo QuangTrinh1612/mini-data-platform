@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 from deltalake import write_deltalake, DeltaTable
 from datetime import datetime
-import os
+from azure.identity import DefaultAzureCredential
 from loguru import logger
 
 class TreasuryDataPipeline:
@@ -107,7 +107,7 @@ class TreasuryDataPipeline:
         
         return df[columns]
     
-    def write_to_onelake_delta(self, df, table_name, mode='overwrite', partition_cols=['year', 'month']):
+    def write_to_onelake_delta(self, df, schema_name, table_name, mode='overwrite', partition_cols=['year', 'month']):
         """
         Write DataFrame to OneLake in Delta format using delta-rs
         
@@ -118,17 +118,15 @@ class TreasuryDataPipeline:
             partition_cols: Columns to partition by
         """
         # Construct the full path for the Delta table
-        delta_path = f"{self.onelake_path}/Tables/{table_name}"
+        delta_path = f"{self.onelake_path}/Tables/{schema_name}/{table_name}"
         
         logger.info(f"Writing to Delta table at: {delta_path}")
         
         try:
             # Configure storage options for Azure
-            storage_options = {
-                # "azure_storage_account_name": "onelake",
-                # "azure_storage_sas_token": os.environ.get("AZURE_SAS_TOKEN", ""),
-                # Alternative: Use Azure AD authentication
-                "azure_use_azure_active_directory": "true"
+            storage_options={
+                "bearer_token": DefaultAzureCredential().get_token("https://storage.azure.com/.default").token,
+                "use_fabric_endpoint": "true"
             }
             
             # Write to Delta format
@@ -138,7 +136,7 @@ class TreasuryDataPipeline:
                 mode=mode,
                 partition_by=partition_cols,
                 storage_options=storage_options,
-                engine='pyarrow',
+                engine='rust',
                 schema_mode='merge'  # Allows schema evolution
             )
             
@@ -153,7 +151,7 @@ class TreasuryDataPipeline:
             logger.error(f"Error writing to Delta table: {e}")
             raise
     
-    def run_pipeline(self, table_name='exchange_rates', max_pages=5):
+    def run_pipeline(self, schema_name, table_name='exchange_rates', max_pages=5):
         """
         Run the complete data pipeline
         
@@ -178,7 +176,7 @@ class TreasuryDataPipeline:
         
         # Step 3: Write to OneLake
         logger.info("Writing to OneLake in Delta format...")
-        self.write_to_onelake_delta(df_transformed, table_name)
+        self.write_to_onelake_delta(df_transformed, schema_name, table_name)
         
         logger.info("Pipeline completed successfully!")
         

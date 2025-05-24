@@ -6,7 +6,7 @@ load_dotenv()
 def main():
     # Configure your Fabric workspace and lakehouse names
     WORKSPACE_NAME = "Oracle_ETL"
-    LAKEHOUSE_NAME = "Oracle_LKH"
+    LAKEHOUSE_NAME = "Oracle_LKH.Lakehouse"
     
     # Option 1: Set authentication via environment variable
     # os.environ["AZURE_SAS_TOKEN"] = "your-sas-token"
@@ -19,6 +19,7 @@ def main():
     
     # Run the pipeline (fetching only 5 pages for demo)
     result_df = pipeline.run_pipeline(
+        schema_name='bronze_sftp',
         table_name='treasury_exchange_rates',
         max_pages=5
     )
